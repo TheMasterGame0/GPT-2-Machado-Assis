@@ -1,0 +1,152 @@
+\documentclass[9pt,technote]{IEEEtran}
+
+\usepackage[utf8]{inputenc}
+\usepackage[brazilian]{babel}
+
+\usepackage[backend=biber, style=numeric]{biblatex}
+\addbibresource{referencias.bib}
+
+\usepackage{indentfirst}
+% \usepackage{xcolor}
+% \usepackage{amsmath}     %Permite escrever os conjuntos matemáticos
+% \usepackage{amsfonts}
+\usepackage{enumerate}   %Inclui a função enumerate 
+% \usepackage{graphicx}
+\usepackage{hyperref}
+% \usepackage{tikz}        %Permite criar imagens
+% \usepackage{multicol}    %Permite usar texto com várias colunas
+
+\usepackage[top=2cm, bottom=2cm, left=3cm, right=3cm]{geometry}
+
+\renewcommand{\baselinestretch}{1.2}
+\setlength\parindent{5.5mm}
+
+% Comentário: Para dar um quebra de paragrafo é preciso pular uma linha.
+
+\begin{document}
+\begin{center}
+    \LARGE \textbf{GPT-2 para Machado de Assis}
+
+    \normalsize Gabriel Henrique do Nascimento Neres
+\end{center}
+
+\section{Descrição do problema}
+Com o intuito de estudar sobre a geração de texto e o funcionamento de redes neurais, esse estudo visa o treinamento de uma pequena versão do modelo GPT-2 tendo como base para o treinamento os textos escritos pelo Machado de Assis. Nesse sentido, o modelo pretendido deverá ser capaz de gerar textos com características semelhantes aos textos do autor, além de buscar manter um texto consistente e coerente.
+
+Além disso, para o enriquecimento do estudo, será feita uma nova implementação separada baseada no nanoGPT, a fim de observar perdas e/ou melhorias e ter uma melhor compreensão de cada uma das estruturas utilizadas. Nesse sentido, as mesmas configurações serão usados em ambos os modelos para decidir um melhor candidato para os testes seguintes.
+
+Tendo decidido um melhor candidato, testes com múltiplas configurações poderão ser feitos para investigar as melhores configurações e possivelmente observar padrões de comportamento que auxiliem na escolha futura de parâmetros.
+
+Desse modo, será possível definir uma melhor estratégia para a geração de modelos similares ao GPT-2 com uma base maior de maneira que tire melhor proveito dos dados obtidos. 
+
+\section{Metodologia}
+
+\subsection{Preparação da base de dados}
+Para o desenvolvimento do modelo, a primeira parte será a obtenção da base de dados com os textos do Machado de Assis. Como os textos são de domínio público, existiam datasets já preparados com os textos, cada um em um formato diferente o que demandaria uma estratégia diferente para o seu uso. O dataset escolhido foi o apresentado na plataforma Kaggle \cite{kaggle}, o qual apresenta diversos textos separados em arquivos distintos.
+
+Primeiramente, foi feita uma limpeza dos dados, removendo a divisão de capítulos, reunindo novamente a mesma sentença em uma mesma linha, para ajudar na obtenção de contexto no treinamento, e a remoção de títulos, índices e demais elementos que fossem  possíveis. Essa limpeza foi feita para remover elementos que não trariam grande informação na geração de padrões de escrita do autor, além de, possivelmente, atrapalhando o treinamento. 
+
+\subsection{Preparação dos dados}
+Tendo o texto agrupado e preparado é preciso iniciar a preparação dessa informação que será utilizada como entrada do modelo. Nesse sentido, a melhor forma para isso é a codificação da entrada para obter números para serem utilizados no modelo no lugar dos caracteres.
+
+Existem diversas formas de codificação que podem ser utilizadas para a geração de diferentes modelos. Com o intuito de proporcionar uma melhor compreensão e comparação entre diferentes modelos, diferentes formas de codificação serão observadas.
+
+\subsubsection{Hot-Encoding}
+Ao utilizar o \textbf{Hot-Encoding}, cada um dos caracteres presentes seria representado por um vetor de 0s e um 1, o qual identificaria de maneira única cada caractere. Nesse sentido, foi adotada a adaptação de associar cada caractere a um inteiro, sendo que para a base obtida os números variam de 0 a 114 devido à presença de 115 caracteres únicos. Dessa forma o texto é transformado em uma lista de inteiros que será utilizada como a entrada do modelo.
+
+\subsubsection{Embedding}
+Os \textbf{Embeddings} se baseiam no conceito de associar cada entrada (um token ou um caractere) a um vetor de n dimensões que representa essa entrada no contexto de treinamento do modelo. Na abordagem utilizando diretamente os caracteres, cada caractere recebe um vetor com valores que indicam características com pesos que serão aprendidos durante o treinamento do modelo.
+
+\subsection{Bigram Model}
+Antes de ir ao modelo final alvo do estudo, que será o nanoGPT que irá emular o GPT-2 para uma pequena base de dados, é interessante passar por modelos menores para entender conceitos e analisar cada estrutura que será utilizada para o modelo final.
+
+O primeiro modelo implementado é o Bigrama. Nele definimos a matriz que representará o Embeding de tamanho 115x115 que irá representar a interação de cada caracteres com cada um dos outros caracteres de maneira direta.
+
+Na etapa \textbf{foward} do modelo, os batchs do texto codificado são passados pela tabela de embedding e logo cada valor da lista de entrada aponta para um vetor de 115 posições terminando com uma matriz com dimensões de $BxCx115$, B sendo o número de batchs e C o comprimento do contexto (hiper parâmetros). Nesse mesmo método, quando o modelo também recebe o Y, o erro é calculado utilizando a função \textit{Cross Entropy} adaptando o vetor X para o formato $B*C x 115$ e o Y para $B*C$, pois assim cada valor de Y estará sendo comparado diretamente a um vetor de 115 elementos de X.
+
+Para treinar o modelo, é utilizado o otimizador AdamW com um \textit{Learning Rate} iniciando em $10^{-1}$ que decrementa em um fator de 10x a cada 3 épocas. A cada iteração os gradientes do otimizador são zerados e re-calculados se baseando no erro calculado segundo o método anteriormente citado, e na derivação do grafo do modelo obtido. Com os valores calculados o passo do otimizador é aplicado e passa para a próxima iteração até a iteração pretendida.
+
+Ao testar o modelo, pode ser observado que o resultado ainda é bem ruim, não gerando palavras existentes nem mesmo a divisão entre as "palavras" na maioria dos casos.
+
+\subsection{Head of Self-Attention}
+Ao desenvolver o modelo GPT uma das estratégias utilizadas foi aumentar a área de atenção do modelo, ou seja, não limitar a analise aos caracteres diretamente subsequentes e passar a considerar a relação entre todo um trecho. Dessa forma, será construída uma relação mais complexa entre os termos e, consequentemente, com resultados mais relevantes. \cite{Attention_Is_All_You_Need}
+
+O primeiro elemento desse processo é mudar o embedding, mudando a matriz $115x115$ pela matriz $115xE$, na qual E é o número de Embeddings que será um novo hiper parâmetro a ser definido. Com essa adaptação a estrutura da \textit{Head} pode ser montada iniciando com a construção de 3 transformações lineares iguais do número de embeddings para o tamanho da head ($E \rightarrow H$).
+
+Na etapa foward, a matriz de pesos é formada pela entrada X no formato (B, C, E) passa pela transformação linear, que é salva em duas variáveis no formato (B, C, H), as multiplica entre si resultando na matriz no formato (B, C, C) e multiplica por $H^{-\frac{1}{2}}$ para controlar a variância nos valores e evitar o comportamento similar ao \textbf{Hot-Encoding}. 
+
+Sobre a matriz de peso é aplicada uma mascara triangular zerando os valores do triângulo superior, posteriormente aplicando o softmax e por ultimo o dropout para o treinamento. Dessa forma, o resultado final será obtido com a matriz de pesos multiplicada pela entrada x passando pela transformação linear ($(B, C, C) X (B, C, H) \rightarrow (B, C, H)$).
+
+Com essas alterações e o uso de múltiplas "cabeças" é possível observar uma pequena melhora, com o surgimento de algumas palavras conhecidas nos texto gerado. No entanto, a maior parte segue não tendo sentido e não forma nenhuma sentença completa.
+
+\subsection{nanoGPT}
+Ao reunir todos esse elementos, incluindo mais chamadas as cabeças de atenção, dropout, camadas feedfoward e funções de ativação, temos a estrutura para uma versão em miniatura do GPT-2. Uma versão completa dessa redução pode ser encontrada no repositório \cite{nanogpt_2026} que é apresentado no vídeo \cite{GPT_Youtube}.
+
+O que será usado nesse estudo é baseado nesses exemplos após revisão e adaptação para maior facilidade na manipulação do modelo para os testes pretendidos.
+
+\subsection{Hiper parâmetros}
+Com o modelo finalizado, uma série de hiper parâmetros foram definidos para o funcionamento e configuração do modelo.
+
+\begin{itemize}
+    \item \textbf{Nº de Batchs (B)}: Define quantos trechos da base de testes serão selecionados por iteração do treinamento.
+    \item \textbf{Tamanho de Contexto (C)}: Define o comprimento de cada trecho selecionado.
+    \item \textbf{Nº de Embeddings (E)}: Determina o tamanho do vetor de embedding.
+    \item \textbf{Numero de Heads (Hs)}: Define quantas cabeças de atenção serão utilizadas, e a partir dela determina o tamanho de cada head.
+    \item \textbf{Nº de Camadas (blockLayers)}: Possibilita definir quantas camadas consecutivas de ln1 -> head + x -> ln2 -> ffwd + x serão utilizadas.
+    \item \textbf{Dropout (dropout)}: Taxa de dropout utilizada no treinamento.
+    \item \textbf{Bias}: Habilita ou desabilita o uso de biases no modelo.
+    \item \textbf{Learning Rate (lr)}: Defini o valor máximo de taxa de aprendizado.
+    \item \textbf{Weight Decay (wd)}: O valor a ser usado de decaimento nas camadas que permitem essa etapa.
+    \item \textbf{Warmup Steps (warmup)}: Número de iterações que utilizarão valores de aprendizado que variam de lr/warmup ao lr.
+    \item \textbf{Learning Decay Step}: Determina a partir de que ponto do treinamento será utilizado o valor mínimo de aprendizado.
+    \item \textbf{Min Learning Rate (minlr)}: Determina o valor mínimo de aprendizado.
+    \item \textbf{Beta1 e Beta2 (betas)}: Betas utilizados no otimizador AdamW.
+\end{itemize}
+
+Com eles é possível ajustar e variar um pouco a estrutura e o funcionamento do modelo. Dessa forma, é possível investigar melhores estruturas para atender a base utilizada.
+
+\section{Resultados}
+
+Após a preparação do máximo possível de dados para o aprendizado, foram obtidos um total de $7,2$ milhões de caracteres para treinamento e um total de $2,3$ milhões de caracteres para testes com um total de 137 caracteres distintos (que poderiam ser reduzidos com uma limpeza mais adequada de dados, como usando apenas um tipo de aspas simples e duplas, um tipo de travessão ...).
+
+Realizando testes com o nanoGPT disponibilizado na internet e a versão simplificada desenvolvida nesse trabalho, foi observado uma grande diferença de desempenho. O tempo necessário entre as iterações eram 10 vezes maiores na versão deste trabalho, além de uma instabilidade maior no treinamento, convergindo rapidamente para o ponto mínimo de erro e em seguida divergindo e aumentando drasticamente o erro. Dessa forma, a versão desenvolvida precisa de uma revisão mais profundas para obter resultados melhores, embora o texto final gerado seja muito similar ao gerado pelo nanoGPT.
+
+Para comparação, a seguir podem ser observados os resultados obtidos com o nanoGPT apos 10 mil iterações e a versão desenvolvida após 2 mil iterações. O primeiro apresenta um erro de $1,18$ nos testes enquanto o segundo apresenta um erro de $2,5$:
+
+"Não acontece o que se pode repetir, dizia ele; toda a prima que me falou no pretendente do dia de moças.
+
+— Vimos só que eu lhe pus na dirigida de Campos, com um sinal de pessoas para o vizinho.
+
+Como assim dizia o amor, disse ela a uma certa intenção de castigo e um dia consentir os olhos do Castelo, alguns instantes e trabalhos de espírito.
+
+— Se não serve de amor, amanhã ou chora.
+
+— Casoiro...
+
+— Mas as tuas qualidades eram um remédio do destino.
+
+Com efeito, não são coisas de santidade." (\textbf{nanoGPT})
+
+"Não é encante.
+
+— Aqui havia ignior.
+
+— A ernota nada.
+
+Não nem é uma moça proversa: .
+
+os bom; pensa começou crer em fácil, mas os que é um dia e outro ritor não atreve.
+
+Se acudiu.
+
+— Não o céu de um dia para em convenidor.
+
+Quanto o primeiro é ao passador do país de madra, pura que lhe, malhei fazer a diferença, todo novo, levante, e tudo dedes, dez mais recondiva que eu precuso de um dogo, famo guerro fortunho; e saíram ainda sela impossível até caminha alguma vez." (\textbf{Versão desenvolvida})
+
+Dado o melhor desempenho do NanoGPT, ele foi utilizado para aprofundar mais os testes desenvolvidos.
+
+
+\printbibliography
+
+
+\end{document}
