@@ -11,7 +11,7 @@
 % \usepackage{amsmath}     %Permite escrever os conjuntos matemáticos
 % \usepackage{amsfonts}
 \usepackage{enumerate}   %Inclui a função enumerate 
-% \usepackage{graphicx}
+\usepackage{graphicx}   % Permite colocar imagens
 \usepackage{hyperref}
 % \usepackage{tikz}        %Permite criar imagens
 % \usepackage{multicol}    %Permite usar texto com várias colunas
@@ -111,7 +111,7 @@ Após a preparação do máximo possível de dados para o aprendizado, foram obt
 
 Realizando testes com o nanoGPT disponibilizado na internet e a versão simplificada desenvolvida nesse trabalho, foi observado uma grande diferença de desempenho. O tempo necessário entre as iterações eram 10 vezes maiores na versão deste trabalho, além de uma instabilidade maior no treinamento, convergindo rapidamente para o ponto mínimo de erro e em seguida divergindo e aumentando drasticamente o erro. Dessa forma, a versão desenvolvida precisa de uma revisão mais profundas para obter resultados melhores, embora o texto final gerado seja muito similar ao gerado pelo nanoGPT.
 
-Para comparação, a seguir podem ser observados os resultados obtidos com o nanoGPT apos 10 mil iterações e a versão desenvolvida após 2 mil iterações. O primeiro apresenta um erro de $1,18$ nos testes enquanto o segundo apresenta um erro de $2,5$:
+Para comparação, a seguir podem ser observados os resultados obtidos com o nanoGPT apos 10 mil iterações e a versão desenvolvida após 2 mil iterações. O primeiro apresenta um erro de $1,19$ nos testes enquanto o segundo apresenta um erro de $2,5$:
 
 "Não acontece o que se pode repetir, dizia ele; toda a prima que me falou no pretendente do dia de moças.
 
@@ -143,10 +143,71 @@ Se acudiu.
 
 Quanto o primeiro é ao passador do país de madra, pura que lhe, malhei fazer a diferença, todo novo, levante, e tudo dedes, dez mais recondiva que eu precuso de um dogo, famo guerro fortunho; e saíram ainda sela impossível até caminha alguma vez." (\textbf{Versão desenvolvida})
 
-Dado o melhor desempenho do NanoGPT, ele foi utilizado para aprofundar mais os testes desenvolvidos.
+A versão do modelo feita nesse trabalho está disponível no repositório do github por meio do link apresentada nas referências \cite{meuRepositorio}, inclusive com um Jupiter notebook demonstrando os passos feitos ao longo da metodologia.
 
+Dado o melhor desempenho do NanoGPT, ele foi utilizado para aprofundar mais os testes desenvolvidos. Os valores utilizados para os hiper parâmetros foram:
+
+\begin{itemize}
+    \item \textbf{Nº de Batchs (B)}: 64
+    \item \textbf{Tamanho de Contexto (C)}: 256
+    \item \textbf{Nº de Embeddings (E)}: 384
+    \item \textbf{Numero de Heads (Hs)}: 6
+    \item \textbf{Nº de Camadas (blockLayers)}: 6
+    \item \textbf{Dropout (dropout)}: 0.2
+    \item \textbf{Bias}: Ativado
+    \item \textbf{Learning Rate (lr)}: 1e-3
+    \item \textbf{Weight Decay (wd)}: 1e-1
+    \item \textbf{Warmup Steps (warmup)}: 2000
+    \item \textbf{Learning Decay Step}: 8000
+    \item \textbf{Min Learning Rate (minlr)}: 1e-5
+    \item \textbf{Beta1 e Beta2 (betas)}: 0.9 e 0.99
+\end{itemize}
+
+O menor taxa de erro na base de testes foi encontrada na iteração 20000 com erro no treino de $1,0833$ e nos testes de $1,1830$, de um total de 20 mil iterações realizadas, tendo uma melhoria de aproximadamente $0,007$ após as 10 mil iterações. Dessa forma, podemos observar que não apresenta ganho em continuar o treinamento após 10 mil iterações e que o erro diminui de maneira mínima até 20 mil iterações com o modelo atual.
+
+Com o intuito de analisar o impacto da variação dos parâmetros outros 5 valores foram testados, utilizando uma curva normal centrada nos valores apresentados anteriormente para gerar os novos valores. Os resultados obtidos podem ser observados no gráfico da imagem \ref{fig:grafico_comparativo} e na tabela \ref{tab:parametros_experimentos}.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.55\textwidth]{image.png}
+    \caption{Gráfico comparativo entre os testes.}
+    \label{fig:grafico_comparativo}
+\end{figure}
+
+\begin{table}[ht]
+    \centering
+    \caption{Configurações dos parâmetros utilizadas nos experimentos}
+    \label{tab:parametros_experimentos}
+    \begin{tabular}{lccccc}
+        \hline
+        \textbf{Dados} & \textbf{batch\_size} & \textbf{block\_size} & 
+        \textbf{n\_layer} & \textbf{n\_head} & \textbf{n\_embd} \\
+        \hline
+        Base    & 64 & 256 & 6  & 6  & 384 \\
+        Teste 1 & 88 & 233 & 6  & 9  & 684 \\
+        Teste 2 & 61 & 127 & 11 & 9  & 261 \\
+        Teste 3 & 89 & 293 & 8  & 6  & 402 \\
+        Teste 4 & 26 & 266 & 11 & 10 & 170 \\
+        Teste 5 & 89 & 268 & 6  & 11 & 781 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Como pode ser observado, o teste com melhor resultado foi o de número 5 (que teve 44M de parâmetros) seguido pelo teste 1 (30M + de parâmetros). No entanto, o teste que mais chama a atenção foi o de número 3, que apesar de ter um número bem menor de parâmetros (15,6M) teve um resultado muito próximo, indicando um bom equilíbrio no modelo gerado para tirar melhor proveito dos dados.
+
+Outra observação importante foi o teste 4, que teve um valor significativamente menor no embeding e no batch size e o maior número de cabeças e camadas, e mesmo tendo o pior resultado, ainda não diferiu muito, indicando que ainda poderia apresentar um bom resultado com mais iterações mantendo um gasto computacional significativamente menor, dado que só possui 4M de parâmetros. Por esse motivo, uma nova execução até 10 mil iterações foi feita e o erro nos testes foi de $1.2804$ no melhor caso, um erro aproximadamente 8\% maior que o modelo base, porém com 60\% do número de parâmetros.
+
+Refazendo o teste 3 até 10 mil iterações, foi observado que o erro nos testes ultrapassou o modelo base na iteração 5500, e ao final das 10 mil iterações foi obtido um erro de $1.0078$ nos testes e $1.1590$, uma melhora de aproximadamente 2\%.
+
+Dessa forma, temos dados relevantes para apontar uma possível melhora na escolha dos parâmetros para o treinamento do modelo, como:
+\begin{itemize}
+    \item Pelo teste 3, vemos que o aumento no número de camadas mantendo os demais parâmetros apresenta uma boa melhora sem aumentar muito o número de parâmetros.
+    \item Pelo teste 2 vemos que o block size tem grande impacto no modelo, visto que sua redução associada ao aumento de camadas ainda levou a perdas em relação ao modelo base.
+    \item Pelo teste 4 temos hipóteses, embora mais vagas dado a mudança expressiva, que é possível diminuir o batchSize.
+\end{itemize}
+
+O último ponto deste trabalho é refletir sobre como o conhecimento obtido a partir desse modelo podem ser estendidos para o universo sobre o autor. baseado na ideia de que o modelo de linguagem tem a capacidade de encontrar padrões no comportamento da linguagem, pode ser entendido que em um modelo mais complexo e com maior capacidade de explicabilidade, é esperado que seja possível compreender melhor as técnicas utilizadas pelo autor, vícios de linguagem, características do tempo vivido durante a escrita dos textos, entre outros. 
 
 \printbibliography
-
 
 \end{document}
